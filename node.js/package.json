@@ -1,0 +1,14 @@
+{
+  "main": "src/index.js",
+  "name": "node",
+  "type": "commonjs",
+  "author": "allboswe",
+  "license": "Unlicense",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "version": "1.0.0",
+  "keywords": [],
+  "description": ""
+}
