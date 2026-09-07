@@ -1,14 +1,25 @@
 {
-  "main": "src/index.js",
-  "name": "node",
+  "main": "src/main.js",
+  "name": "hello-world",
   "type": "commonjs",
-  "author": "allboswe",
+  "author": {
+    "url": "https://allanboswell.com/",
+    "name": "Allan Boswell",
+    "email": "allboswe@icloud.com"
+  },
   "license": "Unlicense",
-  "private": true,
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/main.js"
   },
   "version": "1.0.0",
-  "keywords": [],
-  "description": ""
+  "keywords": [
+    "hello",
+    "world"
+  ],
+  "description": "Hello, world!",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "prettier": "^3.9.6"
+  }
 }
