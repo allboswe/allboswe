@@ -1,0 +1,8 @@
+# ~/workspaces/allboswe/cpp/.vscode
+.vscode
+
+# ~/workspaces/allboswe/cpp/build
+build
+
+# ~/workspaces/allboswe/cpp/CMakeLists.txt
+CMakeLists.txt
