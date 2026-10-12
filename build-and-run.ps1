@@ -105,8 +105,113 @@ function Invoke-CMakeProject {
 }
 
 # ------------------------------------------------------------------------------
+# .NET: Build and run .NET projects.
+# ------------------------------------------------------------------------------
+
+function Invoke-DotNetProject {
+  param (
+    [Parameter(Mandatory)]
+    [string]$Language,
+    [Parameter(Mandatory)]
+    [string]$Directory,
+    [Parameter(Mandatory)]
+    [string]$ProjectFile
+  )
+
+  Write-Host ""
+  Write-Host "===========================================" -ForegroundColor Cyan
+  Write-Host $Language -ForegroundColor Cyan
+  Write-Host "===========================================" -ForegroundColor Cyan
+  Write-Host ""
+
+  $SourceDirectory = Join-Path $RepositoryRoot $Directory
+  $ProjectPath = Join-Path $SourceDirectory $ProjectFile
+
+  $BuildSucceeded = $false
+
+  # ----------------------------------------------------------------------------
+  # Build .NET project.
+  # ----------------------------------------------------------------------------
+
+  Write-Host "[BUILD] Building $Language project..." -ForegroundColor Yellow
+
+  try {
+    if (-not (Test-Path $ProjectPath)) {
+      throw "Project file not found: $ProjectPath."
+    }
+
+    & dotnet build $ProjectPath --configuration Release
+
+    if ($LASTEXITCODE -ne 0) {
+      throw ".NET build exited with code $LASTEXITCODE."
+    }
+
+    $BuildSucceeded = $true
+
+    Write-Host ""
+    Write-Host "[BUILD] Success." -ForegroundColor Green
+  } catch {
+    Write-Host ""
+    Write-Host "[BUILD] Failed." -ForegroundColor Red
+    Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+  }
+
+  # ----------------------------------------------------------------------------
+  # Run .NET project.
+  # ----------------------------------------------------------------------------
+
+  if (-not $BuildSucceeded) {
+    Write-Host ""
+    Write-Host "[RUN] Skipped." -ForegroundColor DarkYellow
+    Write-Host ""
+
+    return
+  }
+
+  Write-Host ""
+  Write-Host "[RUN] Running $Language program..." -ForegroundColor Yellow
+  Write-Host ""
+
+  try {
+    $Output = & dotnet run `
+      --project $ProjectPath `
+      --configuration Release `
+      --no-build
+
+    if ($LASTEXITCODE -ne 0) {
+      throw "Program exited with code $LASTEXITCODE."
+    }
+
+    $Output | Write-Host
+    $ActualOutput = ($Output | Out-String).Trim()
+
+    if ($ActualOutput -ne $ExpectedOutput) {
+      throw "Expected '$ExpectedOutput' but received '$ActualOutput'."
+    }
+
+    Write-Host ""
+    Write-Host "[RUN] Success." -ForegroundColor Green
+  } catch {
+    Write-Host ""
+    Write-Host "[RUN] Failed." -ForegroundColor Red
+    Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+  }
+
+  Write-Host ""
+}
+
+# ------------------------------------------------------------------------------
 # CMake: Execute CMake projects.
 # ------------------------------------------------------------------------------
 
 Invoke-CMakeProject -Language "C"   -Directory "c"
 Invoke-CMakeProject -Language "C++" -Directory "cpp"
+
+# ------------------------------------------------------------------------------
+# .NET: Execute .NET projects.
+# ------------------------------------------------------------------------------
+
+Invoke-DotNetProject `
+  -Language "C#" `
+  -Directory "csharp" `
+  -ProjectFile "csharp-hello-world.csproj"
