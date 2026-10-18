@@ -1,5 +1,6 @@
 $ErrorActionPreference = "Stop"
 
+$Results = @()
 $RepositoryRoot = $PSScriptRoot
 $ExpectedOutput = "Hello, world!"
 
@@ -25,6 +26,8 @@ function Invoke-CMakeProject {
   $BuildDirectory = Join-Path $SourceDirectory "build"
   $Executable = Join-Path $BuildDirectory "Release\main.exe"
 
+  $RunStatus = "Skipped"
+  $BuildStatus = "Failed"
   $BuildSucceeded = $false
 
   # ----------------------------------------------------------------------------
@@ -34,7 +37,7 @@ function Invoke-CMakeProject {
   Write-Host "[BUILD] Configuring CMake..." -ForegroundColor Yellow
 
   try {
-    & cmake -S $SourceDirectory -B $BuildDirectory
+    & cmake -S $SourceDirectory -B $BuildDirectory | Out-Host
 
     if ($LASTEXITCODE -ne 0) {
       throw "CMake configuration exited with code $LASTEXITCODE."
@@ -43,12 +46,13 @@ function Invoke-CMakeProject {
     Write-Host ""
     Write-Host "[BUILD] Building $Language project..." -ForegroundColor Yellow
 
-    & cmake --build $BuildDirectory --config Release
+    & cmake --build $BuildDirectory --config Release | Out-Host
 
     if ($LASTEXITCODE -ne 0) {
       throw "CMake build exited with code $LASTEXITCODE."
     }
 
+    $BuildStatus = "Success"
     $BuildSucceeded = $true
 
     Write-Host ""
@@ -68,8 +72,14 @@ function Invoke-CMakeProject {
     Write-Host "[RUN] Skipped." -ForegroundColor DarkYellow
     Write-Host ""
 
-    return
+    return [PSCustomObject]@{
+      Run      = $RunStatus
+      Build    = $BuildStatus
+      Language = $Language
+    }
   }
+
+  $RunStatus = "Failed"
 
   Write-Host ""
   Write-Host "[RUN] Running $Language program..." -ForegroundColor Yellow
@@ -93,6 +103,8 @@ function Invoke-CMakeProject {
       throw "Expected '$ExpectedOutput' but received '$ActualOutput'."
     }
 
+    $RunStatus = "Success"
+
     Write-Host ""
     Write-Host "[RUN] Success." -ForegroundColor Green
   } catch {
@@ -102,6 +114,12 @@ function Invoke-CMakeProject {
   }
 
   Write-Host ""
+
+  return [PSCustomObject]@{
+    Run      = $RunStatus
+    Build    = $BuildStatus
+    Language = $Language
+  }
 }
 
 # ------------------------------------------------------------------------------
@@ -127,6 +145,8 @@ function Invoke-DotNetProject {
   $SourceDirectory = Join-Path $RepositoryRoot $Directory
   $ProjectPath = Join-Path $SourceDirectory $ProjectFile
 
+  $RunStatus = "Skipped"
+  $BuildStatus = "Failed"
   $BuildSucceeded = $false
 
   # ----------------------------------------------------------------------------
@@ -140,12 +160,13 @@ function Invoke-DotNetProject {
       throw "Project file not found: $ProjectPath."
     }
 
-    & dotnet build $ProjectPath --configuration Release
+    & dotnet build $ProjectPath --configuration Release | Out-Host
 
     if ($LASTEXITCODE -ne 0) {
       throw ".NET build exited with code $LASTEXITCODE."
     }
 
+    $BuildStatus = "Success"
     $BuildSucceeded = $true
 
     Write-Host ""
@@ -165,8 +186,14 @@ function Invoke-DotNetProject {
     Write-Host "[RUN] Skipped." -ForegroundColor DarkYellow
     Write-Host ""
 
-    return
+    return [PSCustomObject]@{
+      Run      = $RunStatus
+      Build    = $BuildStatus
+      Language = $Language
+    }
   }
+
+  $RunStatus = "Failed"
 
   Write-Host ""
   Write-Host "[RUN] Running $Language program..." -ForegroundColor Yellow
@@ -189,6 +216,8 @@ function Invoke-DotNetProject {
       throw "Expected '$ExpectedOutput' but received '$ActualOutput'."
     }
 
+    $RunStatus = "Success"
+
     Write-Host ""
     Write-Host "[RUN] Success." -ForegroundColor Green
   } catch {
@@ -198,20 +227,61 @@ function Invoke-DotNetProject {
   }
 
   Write-Host ""
+
+  return [PSCustomObject]@{
+    Run      = $RunStatus
+    Build    = $BuildStatus
+    Language = $Language
+  }
 }
 
 # ------------------------------------------------------------------------------
 # CMake: Execute CMake projects.
 # ------------------------------------------------------------------------------
 
-Invoke-CMakeProject -Language "C"   -Directory "c"
-Invoke-CMakeProject -Language "C++" -Directory "cpp"
+$Results += Invoke-CMakeProject -Language "C"   -Directory "c"
+$Results += Invoke-CMakeProject -Language "C++" -Directory "cpp"
 
 # ------------------------------------------------------------------------------
 # .NET: Execute .NET projects.
 # ------------------------------------------------------------------------------
 
-Invoke-DotNetProject `
+$Results += Invoke-DotNetProject `
   -Language "C#" `
   -Directory "csharp" `
   -ProjectFile "csharp-hello-world.csproj"
+
+# ------------------------------------------------------------------------------
+# SUMMARY: DISPLAY RESULTS.
+# ------------------------------------------------------------------------------
+
+Write-Host ""
+Write-Host "===========================================" -ForegroundColor Cyan
+Write-Host "Summary" -ForegroundColor Cyan
+Write-Host "===========================================" -ForegroundColor Cyan
+Write-Host ""
+
+$Results | Format-Table Language, Build, Run -AutoSize
+
+$Total = $Results.Count
+$Successful = @(
+  $Results | Where-Object {
+    $_.Build -eq "Success" -and $_.Run -eq "Success"
+  }
+).Count
+
+Write-Host "Successful: $Successful / $Total" -ForegroundColor Green
+
+# ------------------------------------------------------------------------------
+# EXIT: RETURN RESULTS.
+# ------------------------------------------------------------------------------
+
+$Failed = $Total - $Successful
+
+if ($Failed -gt 0) {
+  Write-Host "Overall: Failed ($Failed project(s) unsuccessful)." -ForegroundColor Red
+  exit 1
+}
+
+Write-Host "Overall: Success." -ForegroundColor Green
+exit 0
