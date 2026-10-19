@@ -361,6 +361,131 @@ function Invoke-FortranProject {
 }
 
 # ------------------------------------------------------------------------------
+# Java: Build and run Java projects.
+# ------------------------------------------------------------------------------
+
+function Invoke-JavaProject {
+  param (
+    [Parameter(Mandatory)]
+    [string]$Language,
+    [Parameter(Mandatory)]
+    [string]$Directory,
+    [Parameter(Mandatory)]
+    [string]$SourceFile
+  )
+
+  Write-Host ""
+  Write-Host "===========================================" -ForegroundColor Cyan
+  Write-Host $Language -ForegroundColor Cyan
+  Write-Host "===========================================" -ForegroundColor Cyan
+  Write-Host ""
+
+  $SourceDirectory = Join-Path $RepositoryRoot $Directory
+  $SourcePath = Join-Path $SourceDirectory $SourceFile
+  $BuildDirectory = Join-Path $SourceDirectory "out"
+  $ClassFile = Join-Path $BuildDirectory "Main.class"
+
+  $RunStatus = "Skipped"
+  $BuildStatus = "Failed"
+  $BuildSucceeded = $false
+
+  # ----------------------------------------------------------------------------
+  # Build Java project.
+  # ----------------------------------------------------------------------------
+
+  Write-Host "[BUILD] Building $Language project..." -ForegroundColor Yellow
+
+  try {
+    if (-not (Test-Path -LiteralPath $SourcePath -PathType Leaf)) {
+      throw "Source file not found: $SourcePath."
+    }
+
+    if (-not (Test-Path -LiteralPath $BuildDirectory)) {
+      New-Item -ItemType Directory -Path $BuildDirectory -Force | Out-Null
+    }
+
+    # Prevent a previous class file from being mistaken for a new build.
+    if (Test-Path -LiteralPath $ClassFile) {
+      Remove-Item -LiteralPath $ClassFile -Force
+    }
+
+    & javac -d $BuildDirectory $SourcePath | Out-Host
+
+    if ($LASTEXITCODE -ne 0) {
+      throw "Java compilation exited with code $LASTEXITCODE."
+    }
+
+    if (-not (Test-Path -LiteralPath $ClassFile -PathType Leaf)) {
+      throw "Class file not found after compilation: $ClassFile."
+    }
+
+    $BuildStatus = "Success"
+    $BuildSucceeded = $true
+
+    Write-Host ""
+    Write-Host "[BUILD] Success." -ForegroundColor Green
+  } catch {
+    Write-Host ""
+    Write-Host "[BUILD] Failed." -ForegroundColor Red
+    Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+  }
+
+  # ----------------------------------------------------------------------------
+  # Run Java project.
+  # ----------------------------------------------------------------------------
+
+  if (-not $BuildSucceeded) {
+    Write-Host ""
+    Write-Host "[RUN] Skipped." -ForegroundColor DarkYellow
+    Write-Host ""
+
+    return [PSCustomObject]@{
+      Run = $RunStatus
+      Build = $BuildStatus
+      Language = $Language
+    }
+  }
+
+  $RunStatus = "Failed"
+
+  Write-Host ""
+  Write-Host "[RUN] Running $Language program..." -ForegroundColor Yellow
+  Write-Host ""
+
+  try {
+    $Output = & java -cp $BuildDirectory Main
+
+    if ($LASTEXITCODE -ne 0) {
+      throw "Program exited with code $LASTEXITCODE."
+    }
+
+    $Output | Write-Host
+    $ActualOutput = ($Output | Out-String).Trim()
+
+    if ($ActualOutput -ne $ExpectedOutput) {
+      throw "Expected '$ExpectedOutput' but received '$ActualOutput'."
+    }
+
+    $RunStatus = "Success"
+
+    Write-Host ""
+    Write-Host "[RUN] Success." -ForegroundColor Green
+  } catch {
+    Write-Host ""
+    Write-Host "[RUN] Failed." -ForegroundColor Red
+    Write-Host "[ERROR] $($_.Exception.Message)" -ForegroundColor Red
+  }
+
+  Write-Host ""
+
+  return [PSCustomObject]@{
+    Run = $RunStatus
+    Build = $BuildStatus
+    Language = $Language
+  }
+}
+
+# ------------------------------------------------------------------------------
 # CMake: Execute CMake projects.
 # ------------------------------------------------------------------------------
 
@@ -384,6 +509,15 @@ $Results += Invoke-FortranProject `
   -Language "Fortran" `
   -Directory "fortran" `
   -SourceFile "src/main.f90"
+
+# ------------------------------------------------------------------------------
+# Java: Execute Java projects.
+# ------------------------------------------------------------------------------
+
+$Results += Invoke-JavaProject `
+  -Language "Java" `
+  -Directory "java" `
+  -SourceFile "src/Main.java"
 
 # ------------------------------------------------------------------------------
 # SUMMARY: DISPLAY RESULTS.

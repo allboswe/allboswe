@@ -53,6 +53,13 @@ jobs:
         run: |
           "C:\msys64\ucrt64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
+      # Install the latest Java 25 JDK.
+      - name: Install Java
+        uses: actions/setup-java@v6
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
       # Build, run, and validate each language.
       - name: Execute Script
         shell: pwsh
