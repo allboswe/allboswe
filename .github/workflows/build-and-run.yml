@@ -11,13 +11,13 @@ permissions:
 
 jobs:
   build-and-run:
-    name: Build pipeline
+    name: Build Pipeline
     runs-on: windows-latest
 
     steps:
-      # Retrieve the repository source code.
-      - name: Check out repository
-        uses: actions/checkout@v4
+      # Check out the repository source code.
+      - name: Check Out Repository
+        uses: actions/checkout@v5
     
       # Install the latest CMake release from PyPI.
       - name: Install CMake
@@ -32,28 +32,29 @@ jobs:
 
           $scripts | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-      # Install the latest .NET 10.0 SDK.
-      - name: Install .NET 10.0
-        uses: actions/setup-dotnet@v4
+      # Install the latest .NET 10 SDK.
+      - name: Install .NET
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
-      # Install GNU Fortran using the MSYS2 MinGW-w64 toolchain.
+      # Install GNU Fortran using the MSYS2 UCRT64 toolchain.
       - name: Install GNU Fortran
+        id: msys2
         uses: msys2/setup-msys2@v2
         with:
           update: true
-          install: mingw-w64-x86_64-gcc-fortran
-          msystem: MINGW64
+          install: mingw-w64-ucrt-x86_64-gcc-fortran
+          msystem: UCRT64
 
       # Make GNU Fortran available to subsequent PowerShell steps.
       - name: Configure GNU Fortran
         shell: pwsh
         run: |
-          "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          "C:\msys64\ucrt64\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       # Build, run, and validate each language.
-      - name: Build and run
+      - name: Execute Script
         shell: pwsh
         run: |
           ./build-and-run.ps1
